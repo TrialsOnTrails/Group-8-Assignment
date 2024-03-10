@@ -1,6 +1,6 @@
 # Outline
 
-This Repository is for all assignments of **Group 8** of SOSC 4300 Computational Social Science in 2024 Spring.
+This Repository is for all assignments of **Group 8** of the Course Computational Social Science in 2024 Spring.
 
 ## Homework Assignments 1
 The assignment should be finished in the procedure in 3-fold: (1) **preparation**; (2) **first successful submission on Kaggle**; and (3) **performance improvement**.
