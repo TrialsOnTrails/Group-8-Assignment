@@ -1,0 +1,24 @@
+---
+title: "Assignment 1"
+author: "Junbin Wu"
+date: "2024-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading Library
+```{r}
+```
+
+# Loading data
+```{r}
+```
+
+# Model 1
+```{r}
+```
+
+
