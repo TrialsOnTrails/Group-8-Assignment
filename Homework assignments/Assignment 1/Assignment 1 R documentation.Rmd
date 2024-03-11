@@ -2,7 +2,7 @@
 title: "Assignment 1"
 author: "Junbin Wu"
 date: "2024-03-10"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -11,14 +11,32 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Loading Library
 ```{r}
+library(readr)
 ```
 
 # Loading data
 ```{r}
+# in this data set, each column was assigned a numeric name 1-281 according to the dataset website.
+blogData_train <- read_csv("data/column name added/blogData_train.csv")
+blogData_test_2012_02_01_00_00 <- read_csv("data/column name added/blogData_test-2012.02.01.00_00.csv")
+#View(blogData_train)
 ```
 
 # Model 1
 ```{r}
+
+model1 <- lm(`281` ~ `52`, data = blogData_train)
+# use `52` as the independent varaible, and `281` as the dependent variable.
+model1
 ```
+
+# model 1 testing
+```{r}
+predicted <- predict(model1, newdata=blogData_test_2012_02_01_00_00[,52])
+mse <- mean((predicted - blogData_test_2012_02_01_00_00$`281`)^2)
+mse
+```
+
+
 
 
