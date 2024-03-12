@@ -20,7 +20,20 @@ library(glmnet)
 # in this data set, each column was assigned a numeric name 1-281 according to the dataset website.
 blogData_train <- read_csv("data/column name added/blogData_train.csv")
 blogData_test <- read_csv("data/blogData_test.csv")
+blogData_test_2012_02_02_00_00 <- read_csv("data/BlogFeedback Data Set/blogData_test-2012.02.02.00_00.csv")
 #View(blogData_train)
+```
+
+# Visualize the output variable
+```{r}
+boxplot(blogData_train$`281`)
+summary(blogData_train$`281`)
+hist(blogData_train$`281`, 10000)
+boxplot(predicted)
+summary(predicted)
+hist(predicted, 100)
+xx<-blogData_test_2012_02_02_00_00[,281]
+hist(xx, x=100)
 ```
 
 # lm(): Model 1 and testing
