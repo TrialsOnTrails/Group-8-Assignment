@@ -12,7 +12,8 @@ The assignment should be finished in the procedure in 3-fold: (1) **preparation*
 ### First successful submission on Kaggle
 - Regardless of performance, we first need to build a simple model that can load the data, run without bugs, and do some predictions.
 - ~~Finish this section no later than March 15th, 2024.~~
-- First model built on Mar 11th, 2024, waiting to be submitted to Kaggle.
+- First model built on Mar 11th, 2024
+- First successful submission to Kaggle done on March 12th, 2024
 
 ### Performance improvement
 - Need to ask the course teaching team on the setting of the performance competition on Kaggle. Previous years' example on Kaggle could be found [here](https://www.kaggle.com/competitions/2023-hkust-4300-5500-1/leaderboard).
