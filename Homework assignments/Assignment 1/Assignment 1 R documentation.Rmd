@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(readr)
 library(glmnet)
+library(rpart)
+library(rpart.plot)
 ```
 
 # Loading data
@@ -20,7 +22,7 @@ library(glmnet)
 # in this data set, each column was assigned a numeric name 1-281 according to the dataset website.
 blogData_train <- read_csv("data/column name added/blogData_train.csv")
 blogData_test <- read_csv("data/blogData_test.csv")
-blogData_test_2012_02_02_00_00 <- read_csv("data/BlogFeedback Data Set/blogData_test-2012.02.02.00_00.csv")
+blogData_test_2012_02_01_00_00 <- read_csv("data/column name added/blogData_test-2012.02.01.00_00.csv")
 #View(blogData_train)
 ```
 
@@ -28,26 +30,25 @@ blogData_test_2012_02_02_00_00 <- read_csv("data/BlogFeedback Data Set/blogData_
 ```{r}
 boxplot(blogData_train$`281`)
 summary(blogData_train$`281`)
-hist(blogData_train$`281`, 10000)
+hist(blogData_train$`281`,1000)
 boxplot(predicted)
 summary(predicted)
 hist(predicted, 100)
-xx<-blogData_test_2012_02_02_00_00[,281]
-hist(xx, x=100)
+
 ```
 
 # lm(): Model 1 and testing
 ```{r}
 
-model1 <- lm(`281` ~ `52`, data = blogData_train)
+model1 <- lm(`281` ~ `7`+`52`+`61`+`62`, data = blogData_train)
 # use `52` as the independent varaible, and `281` as the dependent variable.
 model1
 ```
 
 ```{r}
-predicted <- predict(model1, newdata=blogData_test[,52])
-#mse <- mean((predicted - blogData_test_2012_02_01_00_00$`281`)^2)
-#mse
+predicted <- predict(model1, newdata=blogData_test_2012_02_01_00_00)
+mse <- mean((predicted - blogData_test_2012_02_01_00_00$`281`)^2)
+mse
 ```
 
 # result output as csv
@@ -62,6 +63,41 @@ write.csv(outputcsv, "csv_for_submission/031201.csv", row.names = FALSE)
 
 
 
+# Decision tree model
+```{r}
+# Build the decision tree model
 
+train.nonzero <- blogData_train[which(blogData_train$`281`>1),]
+test.nonzero <- blogData_test_2012_02_01_00_00[which(blogData_test_2012_02_01_00_00$`281`>10),]
+
+second_tree <- rpart(`281` ~ ., data = train.nonzero, method = "anova")
+
+
+
+
+predictions <- predict(second_tree, test.nonzero, type = "matrix")
+
+mse <- mean((predictions - test.nonzero$`281`)^2)
+mse
+
+blogData_train<- blogData_train[which(blogData_train$`281`>10),]
+
+#blogData_train$`281` <- ifelse(blogData_train$`281` == 0,0,1)
+first_tree <- rpart(`281` ~ ., data = blogData_train, method = "anova")
+
+#blogData_test_2012_02_01_00_00$`281`<- ifelse(blogData_test_2012_02_01_00_00$`281` == 0,0,1)
+predictions <- predict(first_tree, test.nonzero, type = "matrix")
+summary(predictions)
+
+mse <- mean((predictions - blogData_test$`281`)^2)
+mse
+
+outputcsv <- data.frame(ID = c(0:213))
+outputcsv$num_comments <- as.vector(predictions)
+
+write.csv(outputcsv, "csv_for_submission/031204.csv", row.names = FALSE)
+
+
+```
 
 
