@@ -9,35 +9,26 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Loading Library
-```{r}
-library(readr)
-library(glmnet)
-library(rpart)
-library(rpart.plot)
-```
+# Content
 
-# Loading data
-```{r}
-# in this data set, each column was assigned a numeric name 1-281 according to the dataset website.
-blogData_train <- read_csv("data/column name added/blogData_train.csv")
-blogData_test <- read_csv("data/blogData_test.csv")
-blogData_test_2012_02_01_00_00 <- read_csv("data/column name added/blogData_test-2012.02.01.00_00.csv")
-#View(blogData_train)
-```
+1. Model functions (in chronological order)
+  - 1.1 Simple Linear Model
+  - 1.2 All zeros
+  - 1.3 Decision Tree
+  
+2. Model Evaluation functions
+  - 2.1 MSE calculation
 
-# Visualize the output variable
-```{r}
-boxplot(blogData_train$`281`)
-summary(blogData_train$`281`)
-hist(blogData_train$`281`,1000)
-boxplot(predicted)
-summary(predicted)
-hist(predicted, 100)
+3. Main functions
+  - 3.1 Library loading
+  - 3.2 Data loading
+  - 3.3 Models Running
+  - 3.4 Model evaluation
+  - 3.5 Output as a CSV
 
-```
+# 1. Model functions (in chronological order)
 
-# lm(): Model 1 and testing
+## 1.1 Simple Linear Model
 ```{r}
 
 model1 <- lm(`281` ~ `7`+`52`+`61`+`62`, data = blogData_train)
@@ -45,25 +36,10 @@ model1 <- lm(`281` ~ `7`+`52`+`61`+`62`, data = blogData_train)
 model1
 ```
 
-```{r}
-predicted <- predict(model1, newdata=blogData_test_2012_02_01_00_00)
-mse <- mean((predicted - blogData_test_2012_02_01_00_00$`281`)^2)
-mse
-```
+## 1.2 All zeros
+By predicting all outcomes as zeros, the MSE is even better than 2.1 Linear Model, which indicate that a simple linear regression would not work.
 
-# result output as csv
-```{r}
-
-outputcsv <- data.frame(ID = c(0:213))
-outputcsv$num_comments <- as.vector(predicted)
-
-write.csv(outputcsv, "csv_for_submission/031201.csv", row.names = FALSE)
-
-```
-
-
-
-# Decision tree model
+## 1.3 Decision tree
 ```{r}
 # Build the decision tree model
 
@@ -99,5 +75,59 @@ write.csv(outputcsv, "csv_for_submission/031204.csv", row.names = FALSE)
 
 
 ```
+
+# 2. Model Evaluation functions
+
+## 2.1 MSE calculation
+```{r}
+predicted <- predict(model1, newdata=blogData_test_2012_02_01_00_00)
+mse <- mean((predicted - blogData_test_2012_02_01_00_00$`281`)^2)
+mse
+```
+
+
+
+# 3. Main functions
+
+The Main function calls all other functions above intermittently for the purpose of high efficiency and maintenance, due to high cohesion and low coupling.
+
+## 3.1 Library loading
+
+```{r}
+library(readr)
+library(glmnet)
+library(rpart)
+library(rpart.plot)
+```
+
+## 3.2 Data loading
+
+The data used here have been pre-processed. I added headers 1-281 for every data set. For the training set, I removed all duplicates, so the total observations come down from 52,397 to 49,203.
+```{r}
+train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.csv")
+
+final_test_set <- read_csv("data/Processed Data Set/blogData_test.csv")
+
+test_set_201 <- read_csv("data/Processed Data Set/blogData_test-2012.02.01.00_00.csv")
+```
+## 3.3 Models running
+
+## 3.4 Model evaluation
+
+## 3.5 Output-as-a-CSV
+```{r}
+
+outputcsv <- data.frame(ID = c(0:213))
+outputcsv$num_comments <- as.vector(predicted)
+
+write.csv(outputcsv, "csv_for_submission/031201.csv", row.names = FALSE)
+
+```
+
+
+
+
+
+
 
 
