@@ -12,28 +12,32 @@ knitr::opts_chunk$set(echo = TRUE)
 # Content
 
 1. Model functions (in chronological order)
-  - 1.1 Simple Linear Model
-  - 1.2 All zeros
-  - 1.3 Decision Tree
+  1.1 Simple Linear Model
+  1.2 All zeros
+  1.3 Decision Tree
   
 2. Model Evaluation functions
-  - 2.1 MSE calculation
+  2.1 MSE calculation
 
 3. Main functions
-  - 3.1 Library loading
-  - 3.2 Data loading
-  - 3.3 Models Running
-  - 3.4 Model evaluation
-  - 3.5 Output as a CSV
+  3.1 Library loading
+  3.2 Data loading
+  3.3 Models Running
+  3.4 Model evaluation
+  3.5 Output as a CSV
 
 # 1. Model functions (in chronological order)
 
 ## 1.1 Simple Linear Model
 ```{r}
+# input a training data set
+# output predictions
 
-model1 <- lm(`281` ~ `7`+`52`+`61`+`62`, data = blogData_train)
-# use `52` as the independent varaible, and `281` as the dependent variable.
-model1
+sim_liner_mod <- function(train) {
+  # use `52` as the independent varaible, and `281` as the dependent variable.
+  fit <- lm(`281` ~ `7`+`52`+`61`+`62`, data = train)
+  return(fit)
+}
 ```
 
 ## 1.2 All zeros
@@ -41,38 +45,12 @@ By predicting all outcomes as zeros, the MSE is even better than 2.1 Linear Mode
 
 ## 1.3 Decision tree
 ```{r}
-# Build the decision tree model
-
-train.nonzero <- blogData_train[which(blogData_train$`281`>1),]
-test.nonzero <- blogData_test_2012_02_01_00_00[which(blogData_test_2012_02_01_00_00$`281`>10),]
-
-second_tree <- rpart(`281` ~ ., data = train.nonzero, method = "anova")
-
-
-
-
-predictions <- predict(second_tree, test.nonzero, type = "matrix")
-
-mse <- mean((predictions - test.nonzero$`281`)^2)
-mse
-
-blogData_train<- blogData_train[which(blogData_train$`281`>10),]
-
-#blogData_train$`281` <- ifelse(blogData_train$`281` == 0,0,1)
-first_tree <- rpart(`281` ~ ., data = blogData_train, method = "anova")
-
-#blogData_test_2012_02_01_00_00$`281`<- ifelse(blogData_test_2012_02_01_00_00$`281` == 0,0,1)
-predictions <- predict(first_tree, test.nonzero, type = "matrix")
-summary(predictions)
-
-mse <- mean((predictions - blogData_test$`281`)^2)
-mse
-
-outputcsv <- data.frame(ID = c(0:213))
-outputcsv$num_comments <- as.vector(predictions)
-
-write.csv(outputcsv, "csv_for_submission/031204.csv", row.names = FALSE)
-
+# input a training data set
+# output a fit model
+deci_tree <- function(train) {
+  tree <- rpart(`281` ~ ., data = train, method = "anova")
+  return(tree)
+}
 
 ```
 
@@ -80,9 +58,13 @@ write.csv(outputcsv, "csv_for_submission/031204.csv", row.names = FALSE)
 
 ## 2.1 MSE calculation
 ```{r}
-predicted <- predict(model1, newdata=blogData_test_2012_02_01_00_00)
-mse <- mean((predicted - blogData_test_2012_02_01_00_00$`281`)^2)
-mse
+#input a vector of prediction value, the test data set
+#output a mse
+MSE <- function(prediction, test) {
+  mse <- mean((prediction - test$`281`)^2)
+  return(mse)
+}
+
 ```
 
 
@@ -111,16 +93,32 @@ final_test_set <- read_csv("data/Processed Data Set/blogData_test.csv")
 test_set_201 <- read_csv("data/Processed Data Set/blogData_test-2012.02.01.00_00.csv")
 ```
 ## 3.3 Models running
+```{r}
+predictions <- predict(deci_tree(train_set), test_set_201 , type = "matrix")
+
+# partial decision tree for output probably >3
+train_3plus <- train_set[which(train_set$`281`>3),]
+tree3plus <- deci_tree(train_3plus)
+id <- c(8,20,25,30,40,71,95,109,111,131,141,155,167)
+id <- id + 1
+final_test_set3plus <- final_test_set[id,]
+predictions <- predict(tree3plus, final_test_set3plus,type = "matrix")
+
+```
 
 ## 3.4 Model evaluation
+```{r}
+MSE(predictions,test_set_201)
+```
 
 ## 3.5 Output-as-a-CSV
 ```{r}
 
 outputcsv <- data.frame(ID = c(0:213))
-outputcsv$num_comments <- as.vector(predicted)
 
-write.csv(outputcsv, "csv_for_submission/031201.csv", row.names = FALSE)
+outputcsv$num_comments <- as.vector(predict(deci_tree(train_set), final_test_set , type = "matrix"))
+
+write.csv(outputcsv, "csv_for_submission/031401.csv", row.names = FALSE)
 
 ```
 
