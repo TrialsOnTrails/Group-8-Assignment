@@ -91,6 +91,8 @@ train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.
 final_test_set <- read_csv("data/Processed Data Set/blogData_test.csv")
 
 test_set_201 <- read_csv("data/Processed Data Set/blogData_test-2012.02.01.00_00.csv")
+
+test_set_202 <- read_csv("data/Processed Data Set/blogData_test-2012.02.02.00_00.csv")
 ```
 ## 3.3 Models running
 ```{r}
@@ -104,6 +106,49 @@ id <- id + 1
 final_test_set3plus <- final_test_set[id,]
 predictions <- predict(tree3plus, final_test_set3plus,type = "matrix")
 
+
+### PCA second try#####################################################################
+# Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
+independent_vars <- train_set_zeroCOLremoved[, !names(train_set_zeroCOLremoved) %in% "281"]
+# Scale the independent variables
+independent_vars_scaled <- scale(independent_vars)
+
+# Running PCA on the independent variables
+pca_result <- prcomp(independent_vars_scaled, scale. = TRUE)
+
+# Summary of PCA
+summary(pca_result)
+
+# Scree plot to aid in selecting the number of principal components
+plot(pca_result$sdev^2, type = "b", xlab = "Principal Component", ylab = "Variance Explained")
+
+# Selecting the first few principal components based on the scree plot or variance explained
+n_components <- 14 # for example, if you decided to keep the first two components
+pca_scores <- pca_result$x[, 1:n_components]
+
+# Combine PCA scores with the outcome variable
+regression_data <- as.data.frame(cbind(pca_scores, outcome = train_set_zeroCOLremoved$`281`))
+
+# Linear regression with the outcome variable and the first two principal components
+lm_result <- lm(outcome ~ ., data = regression_data)
+summary(lm_result)
+#################################################################################
+
+# Assuming 'new_data' is your new dataset
+new_independent_vars <- test_set_202[, names(test_set_202) %in% names(independent_vars)]
+# Scale the new data
+new_independent_vars_scaled <- scale(new_independent_vars, center = attr(independent_vars_scaled, "scaled:center"), scale = attr(independent_vars_scaled, "scaled:scale"))
+
+# Transform new data with PCA
+new_pca_scores <- predict(pca_result, newdata = new_independent_vars_scaled)
+
+# Selecting the same number of principal components
+new_pca_scores_selected <- new_pca_scores[, 1:n_components]
+
+# Make predictions
+predictions <- predict(lm_result, newdata = data.frame(new_pca_scores_selected))
+hist(predictions,100)
+MSE(predictions,test_set_202)
 ```
 
 ## 3.4 Model evaluation
@@ -116,9 +161,11 @@ MSE(predictions,test_set_201)
 
 outputcsv <- data.frame(ID = c(0:213))
 
-outputcsv$num_comments <- as.vector(predict(deci_tree(train_set), final_test_set , type = "matrix"))
+#outputcsv$num_comments <- as.vector(prediction, final_test_set , type = "matrix")
+outputcsv$num_comments <- as.vector(predictions)
 
-write.csv(outputcsv, "csv_for_submission/031401.csv", row.names = FALSE)
+
+write.csv(outputcsv, "csv_for_submission/031405.csv", row.names = FALSE)
 
 ```
 
