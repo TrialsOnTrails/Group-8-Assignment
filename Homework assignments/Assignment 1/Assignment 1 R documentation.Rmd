@@ -225,8 +225,8 @@ cv_results
 
 ### PCA third try, only for whose output higher than 10 ###################################################
 
-#train_set_zeroCOLremovedPlus10 <- train_set[which(train_set$`281`< 30),]
-train_set_zeroCOLremovedPlus10 <- train_set[which(train_set$`281`> 2 & train_set$`281`< 100),]
+#train_set_zeroCOLremovedPlus10 <- train_set[,]
+train_set_zeroCOLremovedPlus10 <- train_set[which(train_set$`281`> 0 & train_set$`281`< 200),]
 train_set_zeroCOLremovedPlus10 <- train_set_zeroCOLremovedPlus10[,apply(train_set_zeroCOLremovedPlus10, 2, function(x) var(x)!=0)]
 # Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
 independent_vars <- train_set_zeroCOLremovedPlus10[, !names(train_set_zeroCOLremovedPlus10) %in% "281"]
@@ -258,7 +258,8 @@ summary(lm_result)
 
 #################################################################################
 #id <- c(8,20,24,25,30,40,49,71,95,109,111,131,141,155,166,167,184,203)
-id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203) # 131 remove, this id is extremely large somewhere around 550-650
+id <- c(20,24,30,71,109,111,155,184,203)
+#id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203) # 131 remove, this id is extremely large somewhere around 550-650
 id <- id + 1
 final_test_set10plus <- final_test_set[id,]
 # Assuming 'new_data' is your new dataset
@@ -276,9 +277,13 @@ new_pca_scores_selected <- new_pca_scores[, 1:n_components]
 predictions <- predict(lm_result, newdata = data.frame(new_pca_scores_selected))
 #predictions <- predict(fit, newx = new_pca_scores_selected)
 
+predictions.df <- data.frame(num_comments = predictions)
 
 
+#numof20plus <- nrow(train_set_zeroCOLremovedPlus10)
+#2000/49000
 
+#4% of data larger than 20
 ```
 
 ## 3.4 Model evaluation
