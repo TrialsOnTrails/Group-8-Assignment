@@ -80,6 +80,12 @@ library(readr)
 library(glmnet)
 library(rpart)
 library(rpart.plot)
+library(rlang)
+library(dplyr)
+library(ggplot2)
+library(cli)
+library(caret)
+
 ```
 
 ## 3.2 Data loading
@@ -91,19 +97,193 @@ train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.
 final_test_set <- read_csv("data/Processed Data Set/blogData_test.csv")
 
 test_set_201 <- read_csv("data/Processed Data Set/blogData_test-2012.02.01.00_00.csv")
+
+test_set_202 <- read_csv("data/Processed Data Set/blogData_test-2012.02.02.00_00.csv")
+
+test_set_203 <- read_csv("data/Processed Data Set/blogData_test-2012.02.03.00_00.csv")
 ```
 ## 3.3 Models running
 ```{r}
 predictions <- predict(deci_tree(train_set), test_set_201 , type = "matrix")
 
 # partial decision tree for output probably >3
-train_3plus <- train_set[which(train_set$`281`>3),]
+train_3plus <- train_set[which(train_set$`281`>3 & which(train_set$`281`<200)),]
 tree3plus <- deci_tree(train_3plus)
-id <- c(8,20,25,30,40,71,95,109,111,131,141,155,167)
+id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203)
 id <- id + 1
 final_test_set3plus <- final_test_set[id,]
 predictions <- predict(tree3plus, final_test_set3plus,type = "matrix")
 
+
+### PCA second try#####################################################################
+train_set_zeroCOLremoved <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
+# Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
+independent_vars <- train_set_zeroCOLremoved[, !names(train_set_zeroCOLremoved) %in% "281"]
+# Scale the independent variables
+independent_vars_scaled <- scale(independent_vars)
+
+# Running PCA on the independent variables
+pca_result <- prcomp(independent_vars_scaled, scale. = TRUE)
+
+# Summary of PCA
+summary(pca_result)
+
+# Scree plot to aid in selecting the number of principal components
+plot(pca_result$sdev^2, type = "b", xlab = "Principal Component", ylab = "Variance Explained")
+
+# Selecting the first few principal components based on the scree plot or variance explained
+n_components <- 276 # for example, if you decided to keep the first two components
+pca_scores <- pca_result$x[, 1:n_components]
+
+# Combine PCA scores with the outcome variable
+regression_data <- as.data.frame(cbind(pca_scores, outcome = train_set_zeroCOLremoved$`281`))
+
+# Linear regression with the outcome variable and the first two principal components
+lm_result <- lm(outcome ~ ., data = regression_data)
+summary(lm_result)
+
+fit <- glmnet(pca_scores, train_set_zeroCOLremoved$`281`, alpha = 0.2, nlambda = 1000)
+summary(fit)
+#################################################################################
+
+# Assuming 'new_data' is your new dataset
+new_independent_vars <- test_set_203[, names(test_set_203) %in% names(independent_vars)]
+# Scale the new data
+new_independent_vars_scaled <- scale(new_independent_vars, center = attr(independent_vars_scaled, "scaled:center"), scale = attr(independent_vars_scaled, "scaled:scale"))
+
+# Transform new data with PCA
+new_pca_scores <- predict(pca_result, newdata = new_independent_vars_scaled)
+
+# Selecting the same number of principal components
+new_pca_scores_selected <- new_pca_scores[, 1:n_components]
+
+# Make predictions
+predictions <- predict(lm_result, newdata = data.frame(new_pca_scores_selected))
+#predictions <- predict(fit, newx = new_pca_scores_selected)
+
+predictions1 <- ifelse(predictions <0,0,predictions)
+predictions1 <- ifelse(predictions1 >30, predictions1*2, predictions1/2)
+
+MSE(predictions1,test_set_203)
+
+hist(predictions1,200)
+
+compare <- data.frame(x= predictions1, y=test_set_203$`281`)
+compare
+
+###############################################################################
+# Function to check for zero-variance variables
+check_zero_variance <- function(data) {
+  return(apply(data,2, function(x) var(x) != 0))
+}
+
+# optimization using cross-validation
+
+train_set_zeroCOLremoved <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
+# Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
+independent_vars <- train_set_zeroCOLremoved[, !names(train_set_zeroCOLremoved) %in% "281"]
+# Scale the independent variables
+independent_vars_scaled <- scale(independent_vars)
+
+
+outcome_var <- train_set_zeroCOLremoved$`281`
+
+
+set.seed(321) # for reproducibility
+folds <- createFolds(outcome_var, k = 10, list = TRUE)
+
+# Placeholder for cross-validation results
+cv_results <- data.frame(RMSE = rep(NA, length(folds)), R2 = rep(NA, length(folds)))
+
+
+# Loop over each fold
+for(i in seq_along(folds)) {
+    # Split the data into training and testing sets
+    test_indices <-  folds[[i]]
+    train_indices <- (1:nrow(train_set_zeroCOLremoved))[-test_indices]
+    
+    
+    # PCA on training data
+    pca_result <- prcomp(independent_vars_scaled[train_indices, ], center = TRUE, scale. = TRUE)
+    # Determine number of components explaining 95% variance or use another criterion
+    prop_var_explained <- cumsum(pca_result$sdev^2) / sum(pca_result$sdev^2)
+    num_components <- which.max(prop_var_explained >= 0.95)
+    # Prepare the training data with selected components
+    pca_train <- predict(pca_result, newdata = independent_vars_scaled[train_indices, ])[, 1:num_components]
+    pca_test <- predict(pca_result, newdata = independent_vars_scaled[test_indices, ])[, 1:num_components]
+    
+    model <- glmnet(pca_train, outcome_var[train_indices], family = "gaussian")
+    summary(model)
+    # Predict on testing data
+    predictions <- predict(model, newx = pca_test)
+    
+    # Calculate performance metrics
+    cv_results$RMSE[i] <- sqrt(mean((predictions - outcome_var[test_indices])^2))
+    #cv_results$R2[i] <- cor(predictions, outcome_var[test_indices])^2
+}
+cv_results
+
+### PCA third try, only for whose output higher than 10 ###################################################
+
+#train_set_zeroCOLremovedPlus10 <- train_set[,]
+train_set_zeroCOLremovedPlus10 <- train_set[which(train_set$`281`> 0 & train_set$`281`< 200),]
+train_set_zeroCOLremovedPlus10 <- train_set_zeroCOLremovedPlus10[,apply(train_set_zeroCOLremovedPlus10, 2, function(x) var(x)!=0)]
+# Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
+independent_vars <- train_set_zeroCOLremovedPlus10[, !names(train_set_zeroCOLremovedPlus10) %in% "281"]
+# Scale the independent variables
+independent_vars_scaled <- scale(independent_vars)
+
+# Running PCA on the independent variables
+pca_result <- prcomp(independent_vars_scaled, scale. = TRUE)
+
+prop_var_explained <- cumsum(pca_result$sdev^2) / sum(pca_result$sdev^2)
+n_components <- which.max(prop_var_explained >= 0.95)
+
+# Summary of PCA
+summary(pca_result)
+
+# Scree plot to aid in selecting the number of principal components
+plot(pca_result$sdev^2, type = "b", xlab = "Principal Component", ylab = "Variance Explained")
+
+# Selecting the first few principal components based on the scree plot or variance explained
+#n_components <- 24 # for example, if you decided to keep the first two components
+pca_scores <- pca_result$x[, 1:n_components]
+
+# Combine PCA scores with the outcome variable
+regression_data <- as.data.frame(cbind(pca_scores, outcome = train_set_zeroCOLremovedPlus10$`281`))
+
+# Linear regression with the outcome variable and the first two principal components
+lm_result <- lm(outcome ~ ., data = regression_data)
+summary(lm_result)
+
+#################################################################################
+#id <- c(8,20,24,25,30,40,49,71,95,109,111,131,141,155,166,167,184,203)
+id <- c(20,24,30,71,109,111,155,184,203)
+#id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203) # 131 remove, this id is extremely large somewhere around 550-650
+id <- id + 1
+final_test_set10plus <- final_test_set[id,]
+# Assuming 'new_data' is your new dataset
+new_independent_vars <- final_test_set10plus[, names(final_test_set10plus) %in% names(independent_vars)]
+# Scale the new data
+new_independent_vars_scaled <- scale(new_independent_vars, center = attr(independent_vars_scaled, "scaled:center"), scale = attr(independent_vars_scaled, "scaled:scale"))
+
+# Transform new data with PCA
+new_pca_scores <- predict(pca_result, newdata = new_independent_vars_scaled)
+
+# Selecting the same number of principal components
+new_pca_scores_selected <- new_pca_scores[, 1:n_components]
+
+# Make predictions
+predictions <- predict(lm_result, newdata = data.frame(new_pca_scores_selected))
+#predictions <- predict(fit, newx = new_pca_scores_selected)
+
+predictions.df <- data.frame(num_comments = predictions)
+
+
+#numof20plus <- nrow(train_set_zeroCOLremovedPlus10)
+#2000/49000
+
+#4% of data larger than 20
 ```
 
 ## 3.4 Model evaluation
@@ -114,11 +294,13 @@ MSE(predictions,test_set_201)
 ## 3.5 Output-as-a-CSV
 ```{r}
 
-outputcsv <- data.frame(ID = c(0:213))
+outputcsv <- data.frame(ID = c(0:17))
 
-outputcsv$num_comments <- as.vector(predict(deci_tree(train_set), final_test_set , type = "matrix"))
+#outputcsv$num_comments <- as.vector(prediction, final_test_set , type = "matrix")
+outputcsv$num_comments <- as.vector(predictions)
 
-write.csv(outputcsv, "csv_for_submission/031401.csv", row.names = FALSE)
+
+write.csv(as.vector(predictions), "csv_for_submission/031507_PCAminus200remove131.csv", row.names = FALSE)
 
 ```
 
