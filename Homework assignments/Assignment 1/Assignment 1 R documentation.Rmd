@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Content
 
-1. Model functions (in chronological order)
+1. Model functions (in chronological order of exploration)
   1.1 Simple Linear Model
   1.2 All zeros
   1.3 Decision Tree
@@ -26,16 +26,25 @@ knitr::opts_chunk$set(echo = TRUE)
   3.1 Library loading
   3.2 Data loading
   3.3 Models Running
+    3.3.1 Simple linear model
+    3.3.2 All zeros
+    3.3.3 Decision tree
+      3.3.3.1 Decision tree using the whole set
+      3.3.3.2 Decision second try
+    3.3.4 PCA
+      3.3.4.1 PCA first try
+      3.3.4.2 PCA cross validation
+      3.3.4.3 PCA third try
   3.4 Model evaluation
   3.5 Output as a CSV
 
 # 1. Model functions (in chronological order)
 
 ## 1.1 Simple Linear Model
-```{r}
-# input a training data set
-# output predictions
 
+input a training data set
+output fit model
+```{r}
 sim_liner_mod <- function(train) {
   # use `52` as the independent varaible, and `281` as the dependent variable.
   fit <- lm(`281` ~ `7`+`52`+`61`+`62`, data = train)
@@ -47,9 +56,10 @@ sim_liner_mod <- function(train) {
 By predicting all outcomes as zeros, the MSE is even better than 2.1 Linear Model, which indicate that a simple linear regression would not work.
 
 ## 1.3 Decision tree
+input a training data set
+output a fit model
 ```{r}
-# input a training data set
-# output a fit model
+
 deci_tree <- function(train) {
   tree <- rpart(`281` ~ ., data = train, method = "anova")
   return(tree)
@@ -60,10 +70,9 @@ deci_tree <- function(train) {
 ## 1.4 PCA
 
 ### 1.4.1 PCA original
-
+input two data set, the train and the test
+output predictions on the test
 ```{r}
-# input two data set, the train and the test
-# output predictions on the test
 PCA <- function(train, test) {
   
 #####train the model
@@ -113,9 +122,9 @@ PCA <- function(train, test) {
 ```
 
 ### 1.4.2 PCA with cross validation
+input training set, seed for randomization, k-fold of cross validation
+output the cross validation results
 ```{r}
-# input training set, seed for randomization, k-fold of cross validation
-# output the cross validation results
 PCAcv <- function(train, seed, kf) {
   
   # Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
@@ -167,9 +176,9 @@ PCAcv <- function(train, seed, kf) {
 # 2. Model Evaluation functions
 
 ## 2.1 MSE calculation
+input a vector of prediction value, the test data set
+output a mse
 ```{r}
-#input a vector of prediction value, the test data set
-#output a mse
 MSE <- function(prediction, test) {
   mse <- mean((prediction - test$`281`)^2)
   return(mse)
@@ -180,11 +189,11 @@ MSE <- function(prediction, test) {
 
 
 # 3. Main functions
-
 The Main function calls all other functions above intermittently for the purpose of high efficiency and maintenance, due to high cohesion and low coupling.
 
-## 3.1 Library loading
 
+
+## 3.1 Library loading
 ```{r}
 library(readr)
 library(glmnet)
@@ -198,10 +207,11 @@ library(caret)
 
 ```
 
-## 3.2 Data loading
 
+
+## 3.2 Data loading
 The data used here have been pre-processed. I added headers 1-281 for every data set. For the training set, I removed all duplicates, so the total observations come down from 52,397 to 49,203.
-```{r}
+```{r message=FALSE, warning=FALSE}
 train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.csv")
 
 final_test_set <- read_csv("data/Processed Data Set/blogData_test.csv")
@@ -212,15 +222,29 @@ test_set_202 <- read_csv("data/Processed Data Set/blogData_test-2012.02.02.00_00
 
 test_set_203 <- read_csv("data/Processed Data Set/blogData_test-2012.02.03.00_00.csv")
 ```
-## 3.3 Models running
-```{r}
 
-###################decision try first try##########################################
+
+## 3.3 Models running
+
+### 3.3.1 Simple Linear Model
+```{r}
+fit <- sim_liner_mod(train_set)
+predictions <- predict(fit, final_test_set)
+```
+
+### 3.3.2: the results from 3.3.1 are so bad that it is even worse than entering all zeros 
+
+### 3.3.3 Decision tree
+#### 3.3.3.1 decision tree first try
+```{r}
 first_tree <- deci_tree(train_set)
 predictions <- predict(first_tree, final_test_set, type = "matrix")
 # id with high outcomes 8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203
 
-#####decision tree second try, training specifically for whose output probably >3 and < 200#######
+```
+
+### 3.3.3.2 decision tree second try, training specifically for whose output probably >3 and < 200
+```{r}
 train_3plus <- train_set[which(train_set$`281`>3 & which(train_set$`281`<200)),]
 tree3plus <- deci_tree(train_3plus)
 
@@ -228,23 +252,30 @@ id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203)
 id <- id + 1
 final_test_set3plus <- final_test_set[id,]
 predictions <- predict(tree3plus, final_test_set3plus,type = "matrix")
+```
 
 
-########## PCA first try##########################################################
+### 3.3.4 PCA
+
+#### 3.3.4.1 PCA first try
+```{r}
 # remove any constant zeros column
 train_set_zeroCOLremoved <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
 
 predictions <- cbind(ID = c(0:213), num_comments = PCA(train_set_zeroCOLremoved, final_test_set))
+```
 
 
-### PCA second try, using cross-validation########################################
-
+#### 3.3.4.2 PCA second try, using cross-validation
+```{r}
 train_set_zeroCOLremoved <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
 cvresults <- PCAcv(train_set_zeroCOLremoved, 123, 5)
 
+```
 
-##### PCA third try, identify potential outliers and train a extra model for those outliers ######
 
+#### 3.3.4.3 PCA third try, identify potential outliers and train a extra model for those outliers ######
+```{r}
 #train_set_zeroCOLremovedPlus10 <- train_set[,]
 # by observing the results from the first PCA try, and the results from the decision tree,
 # I discover that the following id might have higher outcome: 8,20,24,25,30,40,49,71,95,109,111,131,141,155,166,167,184,203
@@ -262,7 +293,8 @@ final_test_set2plus <- final_test_set[id,]
 
 predictions <- cbind(ID = id-1, num_comments = PCA(train_set_zeroCOLremoved,final_test_set2plus))
 
-######## Fourth try on PCA #######################################################
+```
+#? Fourth try on PCA #######################################################
 # this time train 5 models for different types of outcomes
 # type 1: 0-10; type 2: 10-20; type 3: 20-40
 
