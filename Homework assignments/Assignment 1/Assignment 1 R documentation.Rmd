@@ -215,12 +215,12 @@ test_set_203 <- read_csv("data/Processed Data Set/blogData_test-2012.02.03.00_00
 ## 3.3 Models running
 ```{r}
 
-# decision try first try
+###################decision try first try##########################################
 first_tree <- deci_tree(train_set)
 predictions <- predict(first_tree, final_test_set, type = "matrix")
 # id with high outcomes 8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203
 
-#decision tree second try, training specifically for whose output probably >3 and < 200
+#####decision tree second try, training specifically for whose output probably >3 and < 200#######
 train_3plus <- train_set[which(train_set$`281`>3 & which(train_set$`281`<200)),]
 tree3plus <- deci_tree(train_3plus)
 
@@ -230,11 +230,11 @@ final_test_set3plus <- final_test_set[id,]
 predictions <- predict(tree3plus, final_test_set3plus,type = "matrix")
 
 
-### PCA first try#####################################################################
+########## PCA first try##########################################################
 # remove any constant zeros column
 train_set_zeroCOLremoved <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
 
-predictions <- PCA(train_set_zeroCOLremoved, final_test_set)
+predictions <- cbind(ID = c(0:213), num_comments = PCA(train_set_zeroCOLremoved, final_test_set))
 
 
 ### PCA second try, using cross-validation########################################
@@ -243,7 +243,7 @@ train_set_zeroCOLremoved <- train_set[,apply(train_set, 2, function(x) var(x)!=0
 cvresults <- PCAcv(train_set_zeroCOLremoved, 123, 5)
 
 
-### PCA third try, identify potential outliers and train a extra model for those outliers ########
+##### PCA third try, identify potential outliers and train a extra model for those outliers ######
 
 #train_set_zeroCOLremovedPlus10 <- train_set[,]
 # by observing the results from the first PCA try, and the results from the decision tree,
@@ -260,9 +260,21 @@ id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203)
 id <- id + 1
 final_test_set2plus <- final_test_set[id,]
 
-predictions <- PCA(train_set_zeroCOLremoved,final_test_set2plus)
+predictions <- cbind(ID = id-1, num_comments = PCA(train_set_zeroCOLremoved,final_test_set2plus))
 
-#################################################################################
+######## Fourth try on PCA #######################################################
+# this time train 5 models for different types of outcomes
+# type 1: 0-10; type 2: 10-20; type 3: 20-40
+
+##### Random Forest ###########################################################
+
+
+#### Neural Network ##########################################################
+
+
+#### Naive Bayes Gaussian #####################################################
+
+##### gradient boosting ########################################################
 
 
 ```
