@@ -47,7 +47,7 @@ output fit model
 ```{r}
 sim_liner_mod <- function(train) {
   # use `52` as the independent varaible, and `281` as the dependent variable.
-  fit <- lm(`281` ~ `7`+`52`+`61`+`62`, data = train)
+  fit <- lm(C281 ~ C7 + C52 + C61 + C62, data = train)
   return(fit)
 }
 ```
@@ -61,7 +61,7 @@ output a fit model
 ```{r}
 
 deci_tree <- function(train) {
-  tree <- rpart(`281` ~ ., data = train, method = "anova")
+  tree <- rpart(C281 ~ ., data = train, method = "anova")
   return(tree)
 }
 
@@ -77,7 +77,7 @@ PCA <- function(train, test) {
   
 #####train the model
   # independent_variables
-  independent_vars <- train[, !names(train) %in% "281"]
+  independent_vars <- train[, !names(train) %in% "C281"]
   
   # Scale the independent variables
   independent_vars_scaled <- scale(independent_vars)
@@ -97,7 +97,7 @@ PCA <- function(train, test) {
   pca_scores <- pca_result$x[, 1:n_components]
   
   # Combine PCA scores with the outcome variable
-  regression_data <- as.data.frame(cbind(pca_scores, outcome = train$`281`))
+  regression_data <- as.data.frame(cbind(pca_scores, outcome = train$C281))
   
   # Linear regression
   lm_result <- lm(outcome ~ ., data = regression_data)
@@ -127,14 +127,15 @@ output the cross validation results
 ```{r}
 PCAcv <- function(train, seed, kf) {
   
-  # Assuming 'data' is your dataframe and 'outcome' is the name of your outcome variable
-  independent_vars <- train[, !names(train) %in% "281"]
+  # Assuming 'train' is your dataframe and 'outcome' is the name of your outcome variable
+  outcome_var <- train$C281
+  independent_vars <- train[, !names(train) %in% "C281"]
   # Scale the independent variables
   independent_vars_scaled <- scale(independent_vars)
   
   #set cv
   set.seed(seed) # for reproducibility
-  outcome_var <- train_set_zeroCOLremoved$`281`
+
   folds <- createFolds(outcome_var, k = kf, list = TRUE)
   
 
@@ -147,7 +148,7 @@ PCAcv <- function(train, seed, kf) {
   for(i in seq_along(folds)) {
       # Split the data into training and testing sets
       test_indices <-  folds[[i]]
-      train_indices <- (1:nrow(train_set_zeroCOLremoved))[-test_indices]
+      train_indices <- (1:nrow(train))[-test_indices]
       
       
       # PCA on training data
@@ -173,6 +174,58 @@ PCAcv <- function(train, seed, kf) {
 }
 ```
 
+### 1.4.3 PCA and Decision tree
+input two data set, the train and the test
+output predictions on the test
+```{r}
+PCA_Deci_tree <- function(train, test) {
+  
+#####train the model
+  # independent_variables
+  independent_vars <- train[, !names(train) %in% "C281"]
+  
+  # Scale the independent variables
+  independent_vars_scaled <- scale(independent_vars)
+  
+  # Running PCA on the independent variables
+  pca_result <- prcomp(independent_vars_scaled, scale. = TRUE)
+  
+  # Scree plot to aid in selecting the number of principal components
+  #plot(pca_result$sdev^2, type = "b", xlab = "Principal Component", ylab = "Variance Explained")
+  
+  # calculate the explained variances
+  prop_var_explained <- cumsum(pca_result$sdev^2) / sum(pca_result$sdev^2)
+  
+  # only select whose explained variances larger than 0.95
+  n_components <- which.max(prop_var_explained >= 0.99)
+  
+  pca_scores <- pca_result$x[, 1:n_components]
+  
+  # Combine PCA scores with the outcome variable
+  regression_data <- as.data.frame(cbind(pca_scores, C281 = train$C281))
+  
+  # Linear regression
+  model <- deci_tree(regression_data)
+  
+
+##### make predictions
+  #  test is the new test dataset
+  new_independent_vars <- test[, names(test) %in% names(independent_vars)]
+  # Scale the test
+  new_independent_vars_scaled <- scale(new_independent_vars, center = attr(independent_vars_scaled, "scaled:center"), scale = attr(independent_vars_scaled, "scaled:scale"))
+  
+  # Transform test data with PCA
+  new_pca_scores <- predict(pca_result, newdata = new_independent_vars_scaled)
+  
+  # Selecting the same number of principal components
+  new_pca_scores_selected <- new_pca_scores[, 1:n_components]
+  
+  # Make predictions
+  predictions <- predict(model, newdata = data.frame(new_pca_scores_selected))
+  return(predictions)
+}
+```
+
 # 2. Model Evaluation functions
 
 ## 2.1 MSE calculation
@@ -180,7 +233,7 @@ input a vector of prediction value, the test data set
 output a mse
 ```{r}
 MSE <- function(prediction, test) {
-  mse <- mean((prediction - test$`281`)^2)
+  mse <- mean((prediction - test$C281)^2)
   return(mse)
 }
 
@@ -204,7 +257,16 @@ library(dplyr)
 library(ggplot2)
 library(cli)
 library(caret)
-
+library(keras)
+library(mlbench)
+library(magrittr)
+library(neuralnet)
+library(Formula)
+library(tensorflow)
+library(reticulate)
+library(e1071)
+library(data.table)
+library(xgboost)
 ```
 
 
@@ -245,7 +307,7 @@ predictions <- predict(first_tree, final_test_set, type = "matrix")
 
 ### 3.3.3.2 decision tree second try, training specifically for whose output probably >3 and < 200
 ```{r}
-train_3plus <- train_set[which(train_set$`281`>3 & which(train_set$`281`<200)),]
+train_3plus <- train_set[which(train_set$C281 >3 & which(train_set$C281<200)),]
 tree3plus <- deci_tree(train_3plus)
 
 id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203)
@@ -274,7 +336,7 @@ cvresults <- PCAcv(train_set_zeroCOLremoved, 123, 5)
 ```
 
 
-#### 3.3.4.3 PCA third try, identify potential outliers and train a extra model for those outliers ######
+#### 3.3.4.3 PCA third try, identify potential outliers and train a extra model for those outliers
 ```{r}
 #train_set_zeroCOLremovedPlus10 <- train_set[,]
 # by observing the results from the first PCA try, and the results from the decision tree,
@@ -283,8 +345,8 @@ cvresults <- PCAcv(train_set_zeroCOLremoved, 123, 5)
 # for this try in PCA, I try a model specifically for this outliers.
 
 # only use data whose output is between 2 and 200
-train_set_zeroCOLremoved <- train_set[which(train_set$`281`> 2 & train_set$`281`< 200),]
-train_set_zeroCOLremoved <- train_set_zeroCOLremovedPlus10[,apply(train_set_zeroCOLremovedPlus10, 2, function(x) var(x)!=0)]
+train_set_zeroCOLremoved <- train_set[which(train_set$C281 > 2 & train_set$C281< 200),]
+train_set_zeroCOLremoved <- train_set_zeroCOLremoved[,apply(train_set_zeroCOLremoved, 2, function(x) var(x)!=0)]
 
 # the test set, this id is identified in the first try of PCA.
 id <- c(8,20,24,25,30,40,49,71,95,109,111,141,155,166,167,184,203)
@@ -295,21 +357,198 @@ predictions <- cbind(ID = id-1, num_comments = PCA(train_set_zeroCOLremoved,fina
 
 ```
 #? Fourth try on PCA #######################################################
-# this time train 5 models for different types of outcomes
-# type 1: 0-10; type 2: 10-20; type 3: 20-40
+```{r}
+#train_set_no_word <- train_set[,-(63:262)]
+#train_set_no_word <- train_set_no_word[,-(1:50)]
+train_set_no_word <- train_set[which(train_set$C281 > 3&train_set$C281 < 20),]
+train_set_zeroCOLremoved <- train_set_no_word[,apply(train_set_no_word, 2, function(x) var(x)!=0)]
+id <- c(4,6,8,16,20,22,24,25,29,30,38,40,67,71,78,90,93,95,103,107,109,111,139,141,150,153,155,159,161,166,167,189,201,208)
+id <- id + 1
+final_test_set2plus <- final_test_set[id,]
 
+ID200plus <- c(131) + 1
+ID50_200 <- c(20,30,208) +1 
+ID20_50 <- c(40,71,95,109,111,141,153,155,167,189,201) +1
+ID3_20 <- c(4,6,8,16,22,29,38,67,78,90,93,103,107,139,150,159,161)+1
+
+predictions <- PCA_Deci_tree(train_set_zeroCOLremoved, final_test_set[ID3_20,])
+
+
+predictions <- PCA_Deci_tree(train_set_zeroCOLremoved, final_test_set2plus)
+predictions
+MSE(predictions, test_set_203)
+
+```
 ##### Random Forest ###########################################################
 
 
 #### Neural Network ##########################################################
+```{r}
 
+####first try
+train_set_zeroCOLremoved <- train_set[which(train_set$C281 > 2 & train_set$C281< 200),]
+train_set_zeroCOLremoved <- train_set_zeroCOLremoved[,apply(train_set_zeroCOLremoved, 2, function(x) var(x)!=0)]
+  
+# Assuming 'train' is your dataframe and 'outcome' is the name of your outcome variable
+  C281 <- train_set_zeroCOLremoved$C281
+  independent_vars <- train_set_zeroCOLremoved[, !names(train_set_zeroCOLremoved) %in% "C281"]
+# Scale the independent variables
+  independent_vars_scaled <- scale(independent_vars)
+# scale train set
+  scale_train <- data.frame(cbind(independent_vars_scaled, C281))
+
+  num_classes <- length(unique(C281))
+
+  
+n1 <- neuralnet(C281 ~ C51+C52+C53+C54+C55+C56+C57+C58+C59+C60+C61+C62,  
+               data = scale_train,
+               hidden = c(5),
+               linear.output = F,
+               threshold = 0.1, 
+               stepmax = 10000,
+               rep=2)
+
+plot(n1,col.hidden = 'darkgreen',     
+col.hidden.synapse = 'darkgreen',
+     show.weights = F,
+     information = F,
+     fill = 'lightblue')
+
+predictions <- predict(n1, test_set_201)
+predictions
+
+#### second try############################################
+
+
+
+
+
+# Step 2: Prepare Your Data
+# Assuming you have a dataframe `df` with 280 features and 1 output variable
+input_data <- as.matrix(train_set[,1:280])  # Selecting the first 280 columns as features
+output_data <- as.matrix(train_set[,281]) # Assuming the output variable is in the 281st column
+
+# Normalize input data
+input_data <- scale(input_data)
+
+num_input_features <- 280
+num_output_classes <- length(unique(output_data))
+
+
+# Split data into training and testing sets
+set.seed(321) # for reproducibility
+train_x <- input_data
+train_y <- output_data
+
+
+# Convert to factor in case it is not already
+train_y_factor <- as.factor(train_y)
+
+# Calculate the frequency of each class
+table_y <- table(train_y_factor)
+
+# Calculate class weights inversely proportional to class frequencies
+class_weights <- max(table_y) / table_y
+
+# Normalize the weights so that the smallest weight is 1.
+class_weights_list <- list(0*class_weights / min(class_weights))
+
+
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 200, activation = 'relu', input_shape = c(280)) %>%
+  layer_dense(units = 200, activation = 'relu') %>%
+  layer_dense(units = 20, activation = 'relu') %>%
+  layer_dense(units = 1)
+
+
+
+# Compile the model with Mean Squared Error as the loss function and an optimizer
+model %>% compile(
+  loss = 'mean_squared_error',  # Using MSE as the loss function
+  optimizer = "adam",  # You can try different optimizers
+  metrics = 'accuracy'  # Accuracy can still be useful to see even if it's not the objective
+)
+
+
+
+# Step 5: Train the Model
+history <- model %>% fit(
+  train_x, train_y,
+  epochs = 10,
+  batch_size = 32,
+  validation_split = 0.2,
+)
+
+
+model %>% evaluate(test_x, test_y)
+
+
+
+
+
+new_data_matrix <- as.matrix(test_set_201[,1:280])
+predictions <- predict(model, new_data_matrix)
+predictions
+
+MSE(predictions, test_set_201)
+
+predicted_classes <- predict_classes(model, new_data_matrix)
+confusionMatrix(data = predicted_classes, reference = true_labels)
+```
 
 #### Naive Bayes Gaussian #####################################################
+```{r}
 
-##### gradient boosting ########################################################
+  # Assuming 'train' is your dataframe and 'outcome' is the name of your outcome variable
+  outcome_var <- train_set$C281
+  independent_vars <- train_set[, !names(train_set) %in% "C281"]
+  # Scale the independent variables
+  independent_vars_scaled <- as.data.frame(scale(independent_vars))
+  
+  training_data<- cbind(independent_vars_scaled,outcome_var)
+  
+X_train <- training_data[, -ncol(training_data)]
+# The last column is the target variable
+y_train <- training_data[, ncol(training_data)]
 
+
+# Train the model
+nb_model <- naiveBayes(X_train, y_train)
+
+predictions <- predict(nb_model, test_set_201)
+
+MSE(predictions, test_set_201)
 
 ```
+##### gradient boosting ########################################################
+```{r}
+# Split the data into features and target
+X_train <- train_set[, -ncol(train_set), ] # all columns except the last one
+y_train <- train_set[, ncol(train_set), ]  # only the last column
+
+
+dtrain <- xgb.DMatrix(data = as.matrix(X_train), label = as.matrix(y_train$C281))
+
+# Step 4: Train the Gradient Boosting model
+# Set parameters for xgboost
+params <- list(
+  objective = "multi:softmax", # change to multi:softmax for multi-class classification
+  eval_metric = "mlogloss",    # multi-class logloss
+  max_depth = 6,               # can tune this and other parameters
+  eta = 0.3,
+  num_class = 438,     # number of classes
+  nthread = 2                  # number of threads to be used
+)
+
+# Number of boosting rounds
+nrounds <- 100
+
+
+# Train the model
+model <- xgb.train(params= params, data = dtrain, nrounds = 100)
+```
+
 
 ## 3.4 Model evaluation
 ```{r}
@@ -323,7 +562,7 @@ MSE(predictions,test_set_201)
 outputcsv$num_comments <- as.vector(predictions)
 
 
-write.csv(as.vector(predictions), "csv_for_submission/031507_PCAminus200remove131.csv", row.names = FALSE)
+write.csv(as.vector(predictions), "csv_for_submission/031603_PCAplusDT.csv", row.names = FALSE)
 
 ```
 
