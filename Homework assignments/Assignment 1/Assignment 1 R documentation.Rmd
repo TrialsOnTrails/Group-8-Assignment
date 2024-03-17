@@ -35,6 +35,12 @@ knitr::opts_chunk$set(echo = TRUE)
       3.3.4.1 PCA first try
       3.3.4.2 PCA cross validation
       3.3.4.3 PCA third try
+    3.3.5 Neural network
+      3.3.5.1 Neural Network firs try using neuralnet
+      3.3.5.2 Neural network using tensorflow and keras 
+    3.3.6 Gradient boosting
+    3.3.7 Naive Bayes Gaussian
+    3.3.8 Random forest
   3.4 Model evaluation
   3.5 Output as a CSV
 
@@ -356,7 +362,8 @@ final_test_set2plus <- final_test_set[id,]
 predictions <- cbind(ID = id-1, num_comments = PCA(train_set_zeroCOLremoved,final_test_set2plus))
 
 ```
-#? Fourth try on PCA #######################################################
+## 3.3.4.4 Fourth try on PCA: try 5 different PCA for different types of results##########################
+This does not work well.
 ```{r}
 #train_set_no_word <- train_set[,-(63:262)]
 #train_set_no_word <- train_set_no_word[,-(1:50)]
@@ -379,10 +386,9 @@ predictions
 MSE(predictions, test_set_203)
 
 ```
-##### Random Forest ###########################################################
+### 3.3.5 Neural network
 
-
-#### Neural Network ##########################################################
+#### 3.3.5.1 Neural Network firs try using neuralnet ##############
 ```{r}
 
 ####first try
@@ -416,15 +422,13 @@ col.hidden.synapse = 'darkgreen',
 
 predictions <- predict(n1, test_set_201)
 predictions
-
-#### second try############################################
-
+```
 
 
+#### 3.3.5.2 Neural network using tensorflow and keras 
+```{r}
 
-
-# Step 2: Prepare Your Data
-# Assuming you have a dataframe `df` with 280 features and 1 output variable
+#dataframe with 280 features and 1 output variable
 input_data <- as.matrix(train_set[,1:280])  # Selecting the first 280 columns as features
 output_data <- as.matrix(train_set[,281]) # Assuming the output variable is in the 281st column
 
@@ -466,8 +470,8 @@ model <- keras_model_sequential() %>%
 # Compile the model with Mean Squared Error as the loss function and an optimizer
 model %>% compile(
   loss = 'mean_squared_error',  # Using MSE as the loss function
-  optimizer = "adam",  # You can try different optimizers
-  metrics = 'accuracy'  # Accuracy can still be useful to see even if it's not the objective
+  optimizer = "adam",  
+  metrics = 'accuracy'  # Accuracy can still be useful to see 
 )
 
 
@@ -485,8 +489,6 @@ model %>% evaluate(test_x, test_y)
 
 
 
-
-
 new_data_matrix <- as.matrix(test_set_201[,1:280])
 predictions <- predict(model, new_data_matrix)
 predictions
@@ -497,31 +499,7 @@ predicted_classes <- predict_classes(model, new_data_matrix)
 confusionMatrix(data = predicted_classes, reference = true_labels)
 ```
 
-#### Naive Bayes Gaussian #####################################################
-```{r}
-
-  # Assuming 'train' is your dataframe and 'outcome' is the name of your outcome variable
-  outcome_var <- train_set$C281
-  independent_vars <- train_set[, !names(train_set) %in% "C281"]
-  # Scale the independent variables
-  independent_vars_scaled <- as.data.frame(scale(independent_vars))
-  
-  training_data<- cbind(independent_vars_scaled,outcome_var)
-  
-X_train <- training_data[, -ncol(training_data)]
-# The last column is the target variable
-y_train <- training_data[, ncol(training_data)]
-
-
-# Train the model
-nb_model <- naiveBayes(X_train, y_train)
-
-predictions <- predict(nb_model, test_set_201)
-
-MSE(predictions, test_set_201)
-
-```
-##### gradient boosting ########################################################
+#### 3.3.6 Gradient boosting
 ```{r}
 # Split the data into features and target
 X_train <- train_set[, -ncol(train_set), ] # all columns except the last one
@@ -547,6 +525,36 @@ nrounds <- 100
 
 # Train the model
 model <- xgb.train(params= params, data = dtrain, nrounds = 100)
+```
+
+
+#### 3.3.7 Naive Bayes Gaussian 
+```{r}
+
+  outcome_var <- train_set$C281
+  independent_vars <- train_set[, !names(train_set) %in% "C281"]
+  # Scale the independent variables
+  independent_vars_scaled <- as.data.frame(scale(independent_vars))
+  
+  training_data<- cbind(independent_vars_scaled,outcome_var)
+  
+X_train <- training_data[, -ncol(training_data)]
+# The last column is the target variable
+y_train <- training_data[, ncol(training_data)]
+
+
+# Train the model
+nb_model <- naiveBayes(X_train, y_train)
+
+predictions <- predict(nb_model, test_set_201)
+
+
+```
+
+#### 3.3.8 Random Forest
+Your docomentation here
+```{r}
+#your code here
 ```
 
 
