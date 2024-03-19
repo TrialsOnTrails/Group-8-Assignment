@@ -362,7 +362,7 @@ final_test_set2plus <- final_test_set[id,]
 predictions <- cbind(ID = id-1, num_comments = PCA(train_set_zeroCOLremoved,final_test_set2plus))
 
 ```
-## 3.3.4.4 Fourth try on PCA: try 5 different PCA for different types of results##########################
+#### 3.3.4.4 Fourth try on PCA: try 5 different PCA for different types of results
 This does not work well.
 ```{r}
 #train_set_no_word <- train_set[,-(63:262)]
@@ -386,9 +386,32 @@ predictions
 MSE(predictions, test_set_203)
 
 ```
+
+#### 3.3.4.5 Fivth try on PCA: scale on both input and output
+```{r}
+#train_set_no_word <- train_set[which(train_set$C281 > 1 & train_set$C281 < 100),]
+
+train_set_5plus <- train_set[which(train_set$C281 > 0),]
+train_set_5plus <- train_set_5plus[,apply(train_set_5plus, 2, function(x) var(x)!=0)]
+
+hist(train_set_5plus$C281)
+
+train_set_5plus$C281 <- log(train_set_5plus$C281)
+hist(train_set_5plus$C281)
+
+
+
+predictions <- as.data.frame(cbind(ID = c(0:213), num_comments = PCA(train_set_5plus, final_test_set)))
+
+
+predictions$num_comments <- exp(predictions$num_comments)
+predictions
+
+
+```
 ### 3.3.5 Neural network
 
-#### 3.3.5.1 Neural Network firs try using neuralnet ##############
+#### 3.3hist(train_set[,1]).5.1 Neural Network firs try using neuralnet 
 ```{r}
 
 ####first try
@@ -427,42 +450,248 @@ predictions
 
 #### 3.3.5.2 Neural network using tensorflow and keras 
 ```{r}
+train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.csv")
+#hist(train_set[,1:50])
+#train_set_5plus <- train_set[which(train_set$C281 > 5),]
+#train_set_5plus <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
 
+set.seed(354)
+split_index <- sample(1:nrow(train_set), size = floor(0.8 * nrow(train_set)))
+
+train_data <- train_set[split_index, ]  # 70% of data for training
+#train_data$C281 <- ifelse(train_data$C281>0,1,0)
+test_data <- train_set[-split_index, ]  # Remaining 30% for testing
+#test_data$C281 <- ifelse(test_data$C281>0,1,0)
 #dataframe with 280 features and 1 output variable
-input_data <- as.matrix(train_set[,1:280])  # Selecting the first 280 columns as features
-output_data <- as.matrix(train_set[,281]) # Assuming the output variable is in the 281st column
 
-# Normalize input data
-input_data <- scale(input_data)
-
-num_input_features <- 280
-num_output_classes <- length(unique(output_data))
-
-
-# Split data into training and testing sets
-set.seed(321) # for reproducibility
-train_x <- input_data
-train_y <- output_data
-
-
-# Convert to factor in case it is not already
-train_y_factor <- as.factor(train_y)
-
-# Calculate the frequency of each class
-table_y <- table(train_y_factor)
-
-# Calculate class weights inversely proportional to class frequencies
-class_weights <- max(table_y) / table_y
-
-# Normalize the weights so that the smallest weight is 1.
-class_weights_list <- list(0*class_weights / min(class_weights))
+input_data_train <- as.matrix(train_data[, !names(train_data) %in% "C281"])  # Selecting the first 280 columns as features
+output_data_train <- as.matrix(train_data[, names(train_data) %in% "C281"]) # Assuming the output variable is in the 281st column
+input_data_test <- as.matrix(test_data[, !names(train_data) %in% "C281"])
+output_data_test <- as.matrix(test_data[, names(train_data) %in% "C281"])
 
 
 
 model <- keras_model_sequential() %>%
-  layer_dense(units = 200, activation = 'relu', input_shape = c(280)) %>%
-  layer_dense(units = 200, activation = 'relu') %>%
-  layer_dense(units = 20, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu',input_shape = c(280)) %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 1)
+
+
+
+# Compile the model with Mean Squared Error as the loss function and an optimizer
+model %>% compile(
+  loss = 'mean_absolute_error',  # Using MSE as the loss function
+  optimizer = "adam",  
+  metrics = 'accuracy'  # Accuracy can still be useful to see 
+)
+
+
+
+# Step 5: Train the Model
+history <- model %>% fit(
+  input_data_train, output_data_train,
+  epochs = 50,
+  batch_size = 30,
+  validation_split = 0.1
+)
+
+
+model %>% evaluate(input_data_test, output_data_test)
+
+# identify 0 or 1 first
+new_data_matrix <- as.matrix(final_test_set[,1:280])
+predictions <- predict(model, new_data_matrix)
+predictions
+
+MSE(predictions, test_set_203)
+
+MSE(predictions, test_set_203)
+######################################
+train_set_0plus <- train_set[which(train_set$C281 > 0 & train_set$C281 < 75 ),]
+
+set.seed(354)
+split_index <- sample(1:nrow(train_set_0plus), size = floor(0.8 * nrow(train_set_0plus)))
+
+train_data <- train_set_0plus[split_index, ]  # 70% of data for training
+
+test_data <- train_set_0plus[-split_index, ]  # Remaining 30% for testing
+
+#dataframe with 280 features and 1 output variable
+
+input_data_train <- as.matrix(train_set_0plus[, !names(train_data) %in% "C281"])  # Selecting the first 280 columns as features
+output_data_train <- as.matrix(train_set_0plus[, names(train_data) %in% "C281"]) # Assuming the output variable is in the 281st column
+input_data_test <- as.matrix(train_set_0plus[, !names(train_data) %in% "C281"])
+output_data_test <- as.matrix(train_set_0plus[, names(train_data) %in% "C281"])
+
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 180, activation = 'tanh',input_shape = c(280)) %>%
+  layer_dense(units = 180, activation = 'tanh') %>%
+  layer_dense(units = 180, activation = 'tanh') %>%
+  layer_dense(units = 180, activation = 'tanh') %>%
+  layer_dense(units = 180, activation = 'tanh') %>%
+  layer_dense(units = 180, activation = 'tanh') %>%
+  layer_dense(units = 1)
+
+
+
+# Compile the model with Mean Squared Error as the loss function and an optimizer
+model %>% compile(
+  loss = 'mean_absolute_error',  # Using MSE as the loss function
+  optimizer = "adamax",  
+  metrics = 'accuracy'  # Accuracy can still be useful to see 
+)
+
+
+
+# Step 5: Train the Model
+history <- model %>% fit(
+  input_data_train, output_data_train,
+  epochs = 10,
+  batch_size = 30,
+  validation_split = 0.1
+)
+
+
+
+model %>% evaluate(input_data_test, output_data_test)
+
+# identify 0 or 1 first
+id.nonzero <- c(6,8,20,25,40,52,60,71,77,95,107,109,111,141,150,155,159,167,170,184,189,201,203)
+id.nonzero <- id.nonzero+1
+
+new_data_matrix <- as.matrix(final_test_set[id.nonzero,1:280])
+predictions <- predict(model, new_data_matrix)
+id.nonzero <- id.nonzero-1
+predictions <- cbind(id.nonzero, predictions)
+
+
+#think about using 10 classes
+
+train_set$C281 <-ifelse(train_set$C281<=10,"A",
+                        ifelse(train_set$C281<=20,"B",
+                               ifelse(train_set$C281<=30,"C",
+                                      ifelse(train_set$C281<=40,"D",
+                                             ifelse(train_set$C281<=50,"E",
+                                                    ifelse(train_set$C281<=60,"F",
+                                                           ifelse(train_set$C281<=70,"G",
+                                                                  ifelse(train_set$C281<=80,"H",
+                                                                         ifelse(train_set$C281<=90,"I",
+                                                                                ifelse(train_set$C281<=100,"J","K"))))))))))
+
+set.seed(354)
+split_index <- sample(1:nrow(train_set), size = floor(0.8 * nrow(train_set)))
+
+train_data <- train_set[split_index, ]  # 70% of data for training
+
+test_data <- train_set[-split_index, ]  # Remaining 30% for testing
+
+#dataframe with 280 features and 1 output variable
+
+input_data_train <- as.matrix(train_data[, !names(train_data) %in% "C281"])  # Selecting the first 280 columns as features
+output_data_train <- as.matrix(train_data[, names(train_data) %in% "C281"]) # Assuming the output variable is in the 281st column
+input_data_test <- as.matrix(test_data[, !names(test_data) %in% "C281"])
+output_data_test <- as.matrix(test_data[, names(test_data) %in% "C281"])
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 180, activation = 'relu',input_shape = c(280)) %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 11, activation = 'softmax')
+
+
+# Compile the model with Mean Squared Error as the loss function and an optimizer
+model %>% compile(
+  loss = 'categorical_cross_entropy',  # Using MSE as the loss function
+  optimizer = "adamax",  
+  metrics = 'accuracy'  # Accuracy can still be useful to see 
+)
+
+
+
+# Step 5: Train the Model
+history <- model %>% fit(
+  input_data_train, output_data_train,
+  epochs = 10,
+  batch_size = 30,
+  validation_split = 0.1
+)
+
+
+```
+
+#### 3.3.5.3 Neural network with PCA
+```{r}
+#### 3.3.5.2 Neural network using tensorflow and keras 
+#train_set_5plus <- train_set[which(train_set$C281 > 5),]
+#train_set_5plus <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
+
+######################################################################
+
+set.seed(213)
+
+train_set <- train_set[,apply(train_set, 2, function(x) var(x)!=0)]
+
+split_index <- sample(1:nrow(train_set), size = floor(0.8 * nrow(train_set)))
+
+train_data <- train_set[split_index, ]  # 70% of data for training
+test_data <- train_set[-split_index, ]  # Remaining 30% for testing
+#dataframe with 280 features and 1 output variable
+
+
+input_data_train <- as.matrix(train_data[, !names(train_data) %in% "C281"])  # Selecting the first 280 columns as features
+output_data_train <- as.matrix(train_data[, names(train_data) %in% "C281"]) # Assuming the output variable is in the 281st column
+input_data_test <- as.matrix(test_data[, !names(train_data) %in% "C281"])
+output_data_test <- as.matrix(test_data[, names(train_data) %in% "C281"])
+#####train the model
+
+
+  
+  # Scale the independent variables
+  independent_vars_scaled <- scale(input_data_train)
+  
+  # Running PCA on the independent variables
+  pca_result <- prcomp(independent_vars_scaled, scale. = TRUE)
+  
+  # Scree plot to aid in selecting the number of principal components
+  #plot(pca_result$sdev^2, type = "b", xlab = "Principal Component", ylab = "Variance Explained")
+  
+  # calculate the explained variances
+  prop_var_explained <- cumsum(pca_result$sdev^2) / sum(pca_result$sdev^2)
+  
+  # only select whose explained variances larger than 0.95
+  n_components <- which.max(prop_var_explained >= 0.95)
+  
+  pca_scores <- as.matrix(pca_result$x[, 1:n_components])
+  
+
+####
+
+  # Scale the test
+  new_independent_vars_scaled <- scale(input_data_test, center = attr(independent_vars_scaled, "scaled:center"), scale = attr(independent_vars_scaled, "scaled:scale"))
+  
+  # Transform test data with PCA
+  new_pca_scores <- predict(pca_result, newdata = new_independent_vars_scaled)
+  
+  # Selecting the same number of principal components
+  new_pca_scores_selected <- new_pca_scores[, 1:n_components]
+  
+
+#######################################################################
+
+
+
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 89, activation = 'relu',input_shape = c(182)) %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
   layer_dense(units = 1)
 
 
@@ -478,26 +707,27 @@ model %>% compile(
 
 # Step 5: Train the Model
 history <- model %>% fit(
-  train_x, train_y,
-  epochs = 10,
-  batch_size = 32,
-  validation_split = 0.2,
+  pca_scores, output_data_train,
+  epochs = 50,
+  batch_size = 30,
+  validation_split = 0.2
 )
 
 
-model %>% evaluate(test_x, test_y)
+
+model %>% evaluate(new_pca_scores_selected, output_data_test)
 
 
 
-new_data_matrix <- as.matrix(test_set_201[,1:280])
+new_data_matrix <- as.matrix(final_test_set[,1:280])
 predictions <- predict(model, new_data_matrix)
 predictions
 
-MSE(predictions, test_set_201)
+MSE(predictions, test_set_203)
 
-predicted_classes <- predict_classes(model, new_data_matrix)
-confusionMatrix(data = predicted_classes, reference = true_labels)
 ```
+```
+
 
 #### 3.3.6 Gradient boosting
 ```{r}
@@ -552,7 +782,7 @@ predictions <- predict(nb_model, test_set_201)
 ```
 
 #### 3.3.8 Random Forest
-Your docomentation here
+Your documentation here
 ```{r}
 #your code here
 ```
@@ -570,7 +800,7 @@ MSE(predictions,test_set_201)
 outputcsv$num_comments <- as.vector(predictions)
 
 
-write.csv(as.vector(predictions), "csv_for_submission/031603_PCAplusDT.csv", row.names = FALSE)
+write.csv(cbind(ID = (0:22), num_comments = predictions), "csv_for_submission/031812_neuralne0plus.csv", row.names = FALSE)
 
 ```
 
