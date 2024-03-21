@@ -470,12 +470,8 @@ input_data_test <- as.matrix(test_data[, !names(train_data) %in% "C281"])
 output_data_test <- as.matrix(test_data[, names(train_data) %in% "C281"])
 
 
-
 model <- keras_model_sequential() %>%
   layer_dense(units = 180, activation = 'relu',input_shape = c(280)) %>%
-  layer_dense(units = 180, activation = 'relu') %>%
-  layer_dense(units = 180, activation = 'relu') %>%
-  layer_dense(units = 180, activation = 'relu') %>%
   layer_dense(units = 180, activation = 'relu') %>%
   layer_dense(units = 180, activation = 'relu') %>%
   layer_dense(units = 1)
@@ -494,8 +490,8 @@ model %>% compile(
 # Step 5: Train the Model
 history <- model %>% fit(
   input_data_train, output_data_train,
-  epochs = 50,
-  batch_size = 30,
+  epochs = 10,
+  batch_size = 15,
   validation_split = 0.1
 )
 
@@ -529,12 +525,9 @@ output_data_test <- as.matrix(train_set_0plus[, names(train_data) %in% "C281"])
 
 
 model <- keras_model_sequential() %>%
-  layer_dense(units = 180, activation = 'tanh',input_shape = c(280)) %>%
-  layer_dense(units = 180, activation = 'tanh') %>%
-  layer_dense(units = 180, activation = 'tanh') %>%
-  layer_dense(units = 180, activation = 'tanh') %>%
-  layer_dense(units = 180, activation = 'tanh') %>%
-  layer_dense(units = 180, activation = 'tanh') %>%
+  layer_dense(units = 180, activation = 'relu',input_shape = c(280)) %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
   layer_dense(units = 1)
 
 
@@ -570,25 +563,29 @@ id.nonzero <- id.nonzero-1
 predictions <- cbind(id.nonzero, predictions)
 
 
-#think about using 10 classes
 
-train_set$C281 <-ifelse(train_set$C281<=10,"A",
-                        ifelse(train_set$C281<=20,"B",
-                               ifelse(train_set$C281<=30,"C",
-                                      ifelse(train_set$C281<=40,"D",
-                                             ifelse(train_set$C281<=50,"E",
-                                                    ifelse(train_set$C281<=60,"F",
-                                                           ifelse(train_set$C281<=70,"G",
-                                                                  ifelse(train_set$C281<=80,"H",
-                                                                         ifelse(train_set$C281<=90,"I",
-                                                                                ifelse(train_set$C281<=100,"J","K"))))))))))
+
+################################################################################3
+
+train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.csv")
+#train_set <- train_set[which(train_set$C281 > 0),]
+
+
+#train_set$C62 <- log(1/mean(train_set$C62)*train_set$C62+1)
+
+#train_set$C281 <- log(train_set$C281+1)
+
+#colleft <- c(51:277,281)
+
+#train_set <- train_set[,colleft]
+
+
 
 set.seed(354)
 split_index <- sample(1:nrow(train_set), size = floor(0.8 * nrow(train_set)))
 
-train_data <- train_set[split_index, ]  # 70% of data for training
-
-test_data <- train_set[-split_index, ]  # Remaining 30% for testing
+train_data <- train_set[split_index, ]  
+test_data <- train_set[-split_index, ] 
 
 #dataframe with 280 features and 1 output variable
 
@@ -597,18 +594,20 @@ output_data_train <- as.matrix(train_data[, names(train_data) %in% "C281"]) # As
 input_data_test <- as.matrix(test_data[, !names(test_data) %in% "C281"])
 output_data_test <- as.matrix(test_data[, names(test_data) %in% "C281"])
 
+
+
 model <- keras_model_sequential() %>%
-  layer_dense(units = 180, activation = 'relu',input_shape = c(280)) %>%
+  layer_dense(units = 50, activation = 'relu',input_shape = c(280)) %>%
   layer_dense(units = 180, activation = 'relu') %>%
   layer_dense(units = 180, activation = 'relu') %>%
-  layer_dense(units = 11, activation = 'softmax')
+  layer_dense(units = 1)
 
 
 # Compile the model with Mean Squared Error as the loss function and an optimizer
 model %>% compile(
-  loss = 'categorical_cross_entropy',  # Using MSE as the loss function
-  optimizer = "adamax",  
-  metrics = 'accuracy'  # Accuracy can still be useful to see 
+  loss = 'mean_squared_error',  # Using MSE as the loss function
+  optimizer = "adam",  
+  metrics = 'mean_absolute_error'  # Accuracy can still be useful to see 
 )
 
 
@@ -616,13 +615,26 @@ model %>% compile(
 # Step 5: Train the Model
 history <- model %>% fit(
   input_data_train, output_data_train,
-  epochs = 10,
-  batch_size = 30,
-  validation_split = 0.1
+  epochs = 200,
+  batch_size = 15,
+  validation_split = 0.8
 )
 
+model %>% evaluate(input_data_test, output_data_test)
+
+id.nonzero <- c(6,8,20,25,40,52,60,71,77,95,107,109,111,141,150,155,159,167,170,184,189,201,203)
+id.nonzero <- id.nonzero+1
+
+new_data_matrix <- as.matrix(final_test_set[id.nonzero,1:280])
+
+new_data_matrix <- as.matrix(test_set_201)
+predictions <- predict(model, new_data_matrix)
+id.nonzero <- id.nonzero-1
+predictions <- cbind(id.nonzero, predictions)
+MSE(predictions, test_set_201)
 
 ```
+
 
 #### 3.3.5.3 Neural network with PCA
 ```{r}
@@ -726,6 +738,77 @@ predictions
 MSE(predictions, test_set_203)
 
 ```
+
+
+#### 3.3.5.4 Categorical neural network
+```{r}
+
+# transform output to classes
+
+train_set <- read_csv("data/Processed Data Set/blogData_train duplicate removed.csv")
+
+
+# need one-hot encoding here
+
+for (i in 1:49203){
+  this.column <- ceiling(train_set[i,281] /5)
+  print(this.column)
+  # train_set[i,281+this.column] <- 1
+  # for (j in 282:567) {
+  #   if (j != 281+this.column){
+  #     train_set[i,j] <- 0
+  #   }
+  # }
+}
+
+
+
+
+train_set$B2 <- ifelse(train_set$C281 > 10 & train_set$C281 < 15,1,0)set.seed(354)
+train_set$B2 <- ifelse(train_set$C281 > 10 & train_set$C281 < 15,1,0)split_index <- sample(1:nrow(train_set), size = floor(0.8 * nrow(train_set)))
+
+train_data <- train_set[split_index, ]  # 70% of data for training
+
+test_data <- train_set[-split_index, ]  # Remaining 30% for testing
+
+#dataframe with 280 features and 1 output variable
+
+input_data_train <- as.matrix(train_data[, 1:280])  # Selecting the first 280 columns as features
+output_data_train <- as.matrix(train_data[, 282:292]) # Assuming the output variable is in the 281st column
+input_data_test <- as.matrix(test_data[, 1:280])
+output_data_test <- as.matrix(test_data[, 282:292])
+
+
+model <- keras_model_sequential() %>%
+  layer_dense(units = 180, activation = 'relu',input_shape = c(280)) %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 180, activation = 'relu') %>%
+  layer_dense(units = 11, activation = 'softmax')
+
+
+# Compile the model with Mean Squared Error as the loss function and an optimizer
+model %>% compile(
+  loss = 'categorical_crossentropy',  # Using MSE as the loss function
+  optimizer = "adam",  
+  metrics = 'accuracy'  # Accuracy can still be useful to see 
+)
+
+
+
+# Step 5: Train the Model
+history <- model %>% fit(
+  input_data_train, output_data_train,
+  epochs = 20,
+  batch_size = 30,
+  validation_split = 0.1
+)
+
+model %>% evaluate(input_data_test, output_data_test)
+
+
+
+predictions <- predict(model, as.matrix(final_test_set[,-281]))
+
 ```
 
 
@@ -799,8 +882,8 @@ MSE(predictions,test_set_201)
 #outputcsv$num_comments <- as.vector(prediction, final_test_set , type = "matrix")
 outputcsv$num_comments <- as.vector(predictions)
 
-
-write.csv(cbind(ID = (0:22), num_comments = predictions), "csv_for_submission/031812_neuralne0plus.csv", row.names = FALSE)
+num_comments <- as.data.frame(predictions)
+write.csv(cbind(ID = (0:213), num_comments), "csv_for_submission/032103NeuralNet_categorical.csv", row.names = FALSE)
 
 ```
 
