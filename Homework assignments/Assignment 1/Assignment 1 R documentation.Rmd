@@ -1,6 +1,6 @@
 ---
 title: "Assignment 1"
-author: "Junbin Wu"
+author: "Junbin Wu", "SO Ji Yue"
 date: "2024-03-10"
 output: pdf_document
 ---
@@ -874,7 +874,44 @@ predictions <- predict(nb_model, test_set_201)
 #### 3.3.8 Random Forest
 Your documentation here
 ```{r}
-#your code here
+
+# Split the data into two features and target
+X_train <- train_set[, -ncol(train_set)]
+y_train <- train_set[, ncol(train_set)]
+
+# Convert factors if there are categorical variables
+# Assuming 'category_column' is a categorical feature that should be a factor
+X_train$category_column <- as.factor(X_train$category_column)
+y_train <- as.factor(y_train)
+
+
+# Ensure y_train is a vector, not a data frame
+if (is.data.frame(y_train)) {
+  y_train <- unlist(y_train, use.names = FALSE)
+}
+
+# Check again if the number of rows in X_train matches the length of y_train
+if (nrow(X_train) != length(y_train)) {
+  stop(paste("Mismatch in the dataset: X_train has", nrow(X_train), "rows, but y_train has", length(y_train), "items."))
+}
+
+# If y_train is not a factor, convert it to factor for classification
+if (!is.factor(y_train)) {
+  y_train <- as.factor(y_train)
+}
+
+# Now train the Random Forest model
+library(randomForest)
+RF_model <- randomForest(x = X_train, y = y_train, ntree = 281, mtry = sqrt(ncol(X_train)), importance = TRUE)
+
+
+# Predict using the model
+predictions <- predict(RF_model, test_set_201)
+
+
+
+
+
 ```
 
 
