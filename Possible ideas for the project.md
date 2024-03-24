@@ -13,5 +13,6 @@
 	- ERGM
 	- Machine learning
 	- random forest
-        -regression analysis
+
+   -regression analysis
    
