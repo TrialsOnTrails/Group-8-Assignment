@@ -1,5 +1,6 @@
 - Possible topic
 	- Nuclear Weapon contrl
+        - Examination of the Relationship between Education Levels and Social Mobility in Hong Kong
 - computational method
 	- Discourse Network Analysis + text analysis + supervised or non-supervised?
 	- simulation
@@ -12,3 +13,5 @@
 	- ERGM
 	- Machine learning
 	- random forest
+        -regression analysis
+   
