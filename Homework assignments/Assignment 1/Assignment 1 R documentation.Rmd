@@ -280,6 +280,8 @@ library(reticulate)
 library(e1071)
 library(data.table)
 library(xgboost)
+library(caTools) 
+library(randomForest) 
 ```
 
 
@@ -918,42 +920,21 @@ predictions <- predict(nb_model, test_set_201[,1:280])
 Your documentation here
 ```{r}
 
-# Split the data into two features and target
-X_train <- train_set[, -ncol(train_set)]
-y_train <- train_set[, ncol(train_set)]
+X_train <- training_data[, -ncol(training_data)]
+# The last column is the target variable
+y_train <- training_data[, ncol(training_data)]
 
-# Convert factors if there are categorical variables
-# Assuming 'category_column' is a categorical feature that should be a factor
-X_train$category_column <- as.factor(X_train$category_column)
-y_train <- as.factor(y_train)
-
-
-# Ensure y_train is a vector, not a data frame
-if (is.data.frame(y_train)) {
-  y_train <- unlist(y_train, use.names = FALSE)
-}
-
-# Check again if the number of rows in X_train matches the length of y_train
-if (nrow(X_train) != length(y_train)) {
-  stop(paste("Mismatch in the dataset: X_train has", nrow(X_train), "rows, but y_train has", length(y_train), "items."))
-}
-
-# If y_train is not a factor, convert it to factor for classification
-if (!is.factor(y_train)) {
-  y_train <- as.factor(y_train)
-}
+set.seed(123)
 
 # Now train the Random Forest model
-library(randomForest)
-RF_model <- randomForest(x = X_train, y = y_train, ntree = 281, mtry = sqrt(ncol(X_train)), importance = TRUE)
+rf_model <- randomForest(x = X_train, y = y_train, ntree = 286, mtry = sqrt(ncol(X_train)), importance = TRUE)
 
 
 # Predict using the model
-predictions <- predict(RF_model, test_set_201)
+predictions <- predict(rf_model, test_set_201)
 
-
-
-
+num_comments <- as.data.frame(predictions)
+num_comments
 
 ```
 
